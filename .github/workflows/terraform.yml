@@ -12,7 +12,7 @@ jobs:
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
-    environment: production
+    # environment: production
 
     defaults:
       run:
@@ -33,7 +33,7 @@ jobs:
     - name: Terraform Format
       run: terraform fmt -check
 
-    - name: Terraform Format
+    - name: Terraform Validate
       run: terraform validate
 
     - name: Terraform Plan

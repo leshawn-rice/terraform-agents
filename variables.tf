@@ -40,3 +40,8 @@ variable "tfc_agent_token" {
   sensitive   = true
   description = "Agent token for terraform agent"
 }
+
+variable "virtual_network_address_space" {
+  type        = string
+  description = "Subnet for the virtual network"
+}

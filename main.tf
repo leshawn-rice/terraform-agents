@@ -9,75 +9,45 @@ module "resource_group" {
 
 module "virtual_network" {
   source  = "app.terraform.io/leshawn-rice/virtual-network/azurerm"
-  version = "1.0.0"
+  version = "1.0.2"
 
-  application    = var.application
-  environment    = var.environment
-  location       = var.location
-  dns_servers    = null
-  address_space  = ["10.0.0.0/24"]
-  resource_group = module.resource_group
+  application         = var.application
+  environment         = var.environment
+  location            = var.location
+  dns_servers         = null
+  address_space       = local.virtual_network_address_space
+  resource_group_name = module.resource_group.name
 }
 
 module "subnet" {
   source  = "app.terraform.io/leshawn-rice/subnet/azurerm"
-  version = "1.0.4"
+  version = "1.0.5"
 
-  application      = var.application
-  environment      = var.environment
-  location         = var.location
-  workload         = "agents"
-  address_prefixes = ["10.0.0.0/27"]
-  resource_group   = module.resource_group
-  virtual_network  = module.virtual_network
+  application          = var.application
+  environment          = var.environment
+  location             = var.location
+  workload             = "agents"
+  address_prefixes     = local.subnet_address_prefixes
+  resource_group_name  = module.resource_group.name
+  virtual_network_name = module.virtual_network.name
 
-  delegations = [{
-    name = "subnetDelegation"
-
-    service_delegation = {
-      name    = "Microsoft.ContainerInstance/containerGroups"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action", "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action"]
-    }
-  }]
+  delegations = local.subnet_delegations
 }
 
-# resource "azurerm_private_dns_zone" "example" {
-#   name                = ""
-#   resource_group_name = module.resource_group.name
-# }
+module "container_instance" {
+  source  = "app.terraform.io/leshawn-rice/container-group/azurerm"
+  version = "1.0.1"
 
-# ACI is container groups
-# https://learn.microsoft.com/en-us/azure/container-instances/container-instances-quickstart-terraform
+  application     = var.application
+  environment     = var.environment
+  workload        = "tfagent"
+  instance_number = "1"
 
-resource "azurerm_container_group" "tf_agent" {
-  name                = "tfagent-private"
   location            = var.location
   resource_group_name = module.resource_group.name
-  ip_address_type     = "Private"
-  os_type             = "Linux"
+  ip_address_type     = local.container_instance.ip_address_type
+  os_type             = local.container_instance.os_type
 
-  subnet_ids = ["${module.subnet.id}"]
-
-  container {
-    name   = "terraform-agent"
-    image  = "hashicorp/tfc-agent:latest"
-    cpu    = "1"
-    memory = "2"
-
-    ports {
-      port     = 443
-      protocol = "TCP"
-    }
-
-    environment_variables = {
-      TFC_AGENT_TOKEN       = var.tfc_agent_token
-      TFC_AGENT_NAME        = "private-azure-001"
-      TFC_AGENT_AUTO_UPDATE = "true"
-    }
-  }
-
-  tags = {
-    environment = "testing"
-    role        = "terraform-agent"
-  }
+  subnet_ids = local.container_instance.subnet_ids
+  containers = local.container_instance.containers
 }
